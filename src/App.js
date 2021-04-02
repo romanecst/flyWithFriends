@@ -3,19 +3,22 @@ import React, {useState, useEffect} from 'react';
 import User from './User';
 import { Button, TextField, Divider } from '@material-ui/core';
 import 'fontsource-roboto';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles, withStyles } from '@material-ui/core/styles';
 import Card from '@material-ui/core/Card';
 import CardActions from '@material-ui/core/CardActions';
 import CardContent from '@material-ui/core/CardContent';
 import Typography from '@material-ui/core/Typography';
 import logo from './image/logo.png'
 import key from './key'
+import Slider from '@material-ui/core/Slider';
 
 const useStyles = makeStyles({
   root: {
-    minWidth: 275,
     width: 'fit-content',
+    height: 'fit-content',
     marginLeft: 30,
+    marginRight: 30,
+    marginBottom:20,
   },
   title: {
     fontSize: 17,
@@ -47,6 +50,61 @@ const useStyles = makeStyles({
   }
 });
 
+
+
+const iOSBoxShadow =
+  '0 3px 1px rgba(0,0,0,0.1),0 4px 8px rgba(0,0,0,0.13),0 0 0 1px rgba(0,0,0,0.02)';
+
+const IOSSlider = withStyles({
+  root: {
+    color: '#3880ff',
+    height: 2,
+    padding: '15px 0',
+  },
+  thumb: {
+    height: 18,
+    width: 18,
+    backgroundColor: '#fff',
+    boxShadow: iOSBoxShadow,
+    marginTop: -10,
+    marginLeft: -14,
+    '&:focus, &:hover, &$active': {
+      boxShadow: '0 3px 1px rgba(0,0,0,0.1),0 4px 8px rgba(0,0,0,0.3),0 0 0 1px rgba(0,0,0,0.02)',
+      // Reset on touch devices, it doesn't add specificity
+      '@media (hover: none)': {
+        boxShadow: iOSBoxShadow,
+      },
+    },
+  },
+  active: {},
+  valueLabel: {
+    left: 'calc(-50% + 2px)',
+    top: -22,
+    '& *': {
+      background: 'transparent',
+      color: '#000',
+    },
+  },
+  track: {
+    height: 2,
+  },
+  rail: {
+    height: 2,
+    opacity: 0.5,
+    backgroundColor: '#000',
+  },
+  mark: {
+    backgroundColor: '#bfbfbf',
+    height: 8,
+    width: 1,
+    marginTop: -3,
+  },
+  markActive: {
+    opacity: 1,
+    backgroundColor: 'currentColor',
+  },
+})(Slider);
+  
 
 function App() {
 
@@ -322,14 +380,16 @@ const meanPrice = (array) => {
 const [count, setCount] = useState(2);
 const [resultDates, setResultDates] = useState(<div></div>);
 const [resultFlights, setResultFlights] = useState(<div></div>);
+const [flightInfo, setFlightInfo] = useState(<div></div>);
 const [users, setUsers] = useState([]);
 const [departures, setDepartures] = useState([]);
-const [places, setPlaces] = useState([]);
-const [minDur, setMinDur] = useState('');
-const [maxDur, setMaxDur] = useState('');
-const [numberMin, setNumberMin] = useState(true);
-const [numberMax, setNumberMax] = useState(true);
 const [selectedValue, setSelectedValue] = useState(0);
+const [selectedDestination, setSelectedDestination] = useState(0);
+const [value, setValue] = useState([1, 31]);
+
+const handleChange = (event, newValue) => {
+  setValue(newValue);
+};
 
 const classes = useStyles();
 
@@ -352,7 +412,7 @@ for(let i=0; i<count; i++){
 }
 
 const Compute = () => {
-  if(users.length !== 0 && minDur != '' && maxDur != '' && numberMax && numberMin){
+  if(users.length !== 0){
     let output = commonDatesByName(users);
     console.log('out',output);
     let outputString = '';
@@ -366,7 +426,7 @@ const Compute = () => {
       outputString += 'are:'
       availabilities =[];
       for(var k=0; k<output.length; k++){
-        if(countDays(output[k].disp[0],output[k].disp[1],minDur,maxDur)){
+        if(countDays(output[k].disp[0],output[k].disp[1],value[0],value[1])){
           outputDates.push(output[k].disp);
           if(output[k].disp[0] == output[k].disp[1]){
             availabilities.push(
@@ -392,14 +452,21 @@ const Compute = () => {
               </li>
               );
           }
+        }else{
+          outputString = 'No common availabilities.'
         }
       };
     }else{
       outputString = 'No common availabilities.'
     }
 
+    let btn = <Button variant="outlined" color="primary" onClick={()=>CheapFlights(outputDates[selectedValue])}>Search Cheapest Destination at selected dates</Button>;
+    if(  outputString == 'No common availabilities.'){
+      btn = <div/>
+    }
+
     setResultDates(  
-    <Card className={classes.root}>
+    <Card className={classes.root} >
       <CardContent>
         <Typography className={classes.title} color="textSecondary" gutterBottom>
         {outputString}
@@ -407,18 +474,20 @@ const Compute = () => {
         <ul className={classes.list} onChange={(e)=> setSelectedValue(e.target.value)}>{availabilities}</ul>
       </CardContent>
       <CardActions>
-      <Button variant="outlined" color="primary" onClick={()=>CheapFlights(outputDates[selectedValue])}>Search Cheapest Destination at selected dates</Button>
+        {btn}
       </CardActions>
     </Card>
     );
   }
 }
 
+
 const CheapFlights = async(dates) => {
   let countRequests = 0;
   let loc = [];
   let quotes = [];
   let pricesArray = [];
+  let carriersArray = {};
   let inArray = false;
   let index = 0;
   let finalQuotes = [];
@@ -445,14 +514,24 @@ const CheapFlights = async(dates) => {
     const responseFlights = await rawResponseFlights.json();
     console.log('res',responseFlights);
     countRequests++;
-    if(places.length == 0){
-      setPlaces(responseFlights.Places);
-    }
     quotes = responseFlights.Quotes.slice(0,15);
     pricesArray = [];
     for(let l=0; l<quotes.length; l++){
       for(let m=0; m<responseFlights.Places.length; m++){
-        if(quotes[l].OutboundLeg.DestinationId == responseFlights.Places[m].PlaceId){
+        if(quotes[l].OutboundLeg.DestinationId == responseFlights.Places[m].PlaceId && (departures[j].budget >= quotes[l].MinPrice)){
+          carriersArray = {Inbound:[],Outbound:[]};
+          for(let b=0; b<responseFlights.Carriers.length; b++){
+            for(let c=0; c<quotes[l].InboundLeg.CarrierIds.length; c++){
+              if(quotes[l].InboundLeg.CarrierIds[c] == responseFlights.Carriers[b].CarrierId ){
+                carriersArray.Inbound.push(responseFlights.Carriers[b].Name)
+              }
+            }
+            for(let c=0; c<quotes[l].OutboundLeg.CarrierIds.length; c++){
+              if(quotes[l].OutboundLeg.CarrierIds[c] == responseFlights.Carriers[b].CarrierId ){
+                carriersArray.Outbound.push(responseFlights.Carriers[b].Name)
+              }
+            }
+          }
           inArray = false;
           for(let n=0; n<pricesArray.length; n++){
             if(pricesArray[n].name == responseFlights.Places[m].CityName){
@@ -465,82 +544,97 @@ const CheapFlights = async(dates) => {
               pricesArray[index].price = quotes[l].MinPrice;
             }
           }else if(responseFlights.Places[m]){
-            pricesArray.push({name: responseFlights.Places[m].CityName, price: quotes[l].MinPrice});
+            pricesArray.push({name: responseFlights.Places[m].CityName, price: quotes[l].MinPrice, carriers:carriersArray});
           }else{
-            pricesArray.push({name: responseFlights.Places[m].Name, price: quotes[l].MinPrice});
+            pricesArray.push({name: responseFlights.Places[m].Name, price: quotes[l].MinPrice, carriers:carriersArray});
           }
         }
       }
     }
+
     finalQuotes.push({name:departures[j].name, departure: departures[j].location, prices: pricesArray});
   }
   console.log(finalQuotes, countRequests);
   let output = meanPrice(finalQuotes);
-  let outputString = 'The cheapest common destinations at these dates are:';
-  let outputFlights = []
+  console.log('output price',output)
+  let outputString = 'The cheapest common destinations at these dates on average per person are:';
+  let outputFlights = [];
   for(let o=0; o<output.length; o++){
-    outputFlights.push(<li>{output[o].name} for {output[o].price}€</li>)
+    outputFlights.push(
+    <li style={{listStyleType: 'none'}}><input
+      type='radio'
+      value={o}
+      name='disp'/>
+      {output[o].name} for {output[o].price}€ </li>);   
   }
+
+  const ShowInfo = ()=>{
+    console.log('index', selectedDestination)
+    let outputInfo = [];
+    for(let p=0; p<finalQuotes.length; p++){
+      for(let q=0; q<finalQuotes[p].prices.length; q++){
+        if(output[selectedDestination].name == finalQuotes[p].prices[q].name){
+            outputInfo.push(<li>For {finalQuotes[p].name}: {finalQuotes[p].prices[q].price}€ return with {finalQuotes[p].prices[q].carriers.Inbound[0]} for the outbound flight and {finalQuotes[p].prices[q].carriers.Outbound[0]} for the inbound flight</li>);
+        }
+      }
+    }
+    
+    setFlightInfo(
+      <Card className={classes.root}>
+      <CardContent>
+        <Typography className={classes.title} color="textSecondary" gutterBottom>
+        Flight to {output[selectedDestination].name}:
+        </Typography>
+        <ul className={classes.list}>{outputInfo}</ul>
+      </CardContent>
+    </Card>
+    );
+  }
+
   setResultFlights(
     <Card className={classes.root}>
     <CardContent>
       <Typography className={classes.title} color="textSecondary" gutterBottom>
       {outputString}
       </Typography>
-      <ul className={classes.list}>{outputFlights}</ul>
+      <ul className={classes.list} onChange={(e)=> { console.log('val',e.target.value); setSelectedDestination(e.target.value)}}>{outputFlights}</ul>
     </CardContent>
+    <CardActions>
+      <Button variant="outlined" color="primary" onClick={()=>ShowInfo()}>More information about this destination</Button>
+    </CardActions>
   </Card>
   );
-}
 
-
-let minDuration = <TextField 
-              value={minDur}
-              onChange={(e)=>{setMinDur(e.target.value);if(e.target.value<Number.POSITIVE_INFINITY){setNumberMin(true)}else{setNumberMin(false)}}}
-              className={classes.input}/> 
-if(!numberMin){             
-minDuration =  <TextField
-error
-id="standard-error-helper-text"
-value={minDur}
-onChange={(e)=>{setMinDur(e.target.value);if(e.target.value<Number.POSITIVE_INFINITY){setNumberMin(true)}else{setNumberMin(false)}}}
-helperText="Incorrect entry."
-className={classes.incorrectInput}
-/>
-}
-
-let maxDuration = <TextField 
-              value={maxDur}
-              onChange={(e)=>{setMaxDur(e.target.value);if(e.target.value<Number.POSITIVE_INFINITY){setNumberMax(true)}else{setNumberMax(false)}}}
-              className={classes.input}/> 
-if(!numberMax){             
-maxDuration =  <TextField
-error
-id="standard-error-helper-text"
-value={maxDur}
-onChange={(e)=>{setMaxDur(e.target.value);if(e.target.value<Number.POSITIVE_INFINITY){setNumberMax(true)}else{setNumberMax(false)}}}
-helperText="Incorrect entry."
-className={classes.incorrectInput}
-/>
 }
 
   return (
       <div style={{paddingBottom:50}}>
         <div id='background'>
-          <div>
+        <img id='logo' src={logo}/>
+          <div style={{paddingTop:50}}>
               <Button variant="contained" color="primary" style={{margin:15}} onClick={()=>setCount(count+1)}>Add User</Button>
               <Button variant="contained" color="secondary" onClick={()=>setCount(count-1)}>Del User</Button>
               <a href='#result'><Button variant="contained" style={{margin:15}} onClick={()=>Compute()}>Go</Button></a>
-              <img id='logo' src={logo}/>
           </div>
           <div className="panel">
             <div  className={classes.length}>
               <h5>How long will your holiday be?</h5>
-              Minimum duration (in days): 
-              {minDuration}
-              <br/>
-              Maximum duration: 
-              {maxDuration}
+              <div style={{display:'flex', flexWrap:'wrap'}}>
+                <div style={{marginRight:50,}}>
+                <p>Minimum duration (in days): {value[0]}</p>
+                <p>Maximum duration: {value[1]}</p>
+                </div>
+                <div style={{width:250, marginLeft:15, marginTop:30}}>
+                <IOSSlider 
+                value={value}
+                min={1}
+                max={31}
+                onChange={handleChange}
+                valueLabelDisplay="on"
+                />
+                </div>
+              </div>
+
             </div>
             <Divider />
             <div>
@@ -548,9 +642,10 @@ className={classes.incorrectInput}
             </div>
           </div>
         </div>
-        <div id='result' style={{display: 'flex',flexDirection: 'row', marginTop: 30, justifyContent:'flex-start'}}>
+        <div id='result' style={{display: 'flex',flexDirection: 'row', marginTop: 30, justifyContent:'flex-start', flexWrap:'wrap'}}>
         {resultDates}
         {resultFlights}
+        {flightInfo}
         </div>
       </div>
   );
