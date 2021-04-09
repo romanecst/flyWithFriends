@@ -9,7 +9,6 @@ import CardActions from '@material-ui/core/CardActions';
 import CardContent from '@material-ui/core/CardContent';
 import Typography from '@material-ui/core/Typography';
 import logo from './image/logo.png'
-import key from './key'
 import Slider from '@material-ui/core/Slider';
 
 const useStyles = makeStyles({
@@ -495,7 +494,7 @@ const CheapFlights = async(dates) => {
     const rawResponse = await fetch(`https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/autosuggest/v1.0/FR/EUR/fr-FR/?query=${departures[i].location}`, {
       "method": "GET",
       "headers": {
-        "x-rapidapi-key": key,
+        "x-rapidapi-key": process.env.API_KEY,
         "x-rapidapi-host": "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com"
       }
     });
@@ -507,7 +506,7 @@ const CheapFlights = async(dates) => {
     const rawResponseFlights = await fetch(`https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/browsequotes/v1.0/FR/EUR/fr-FR/${loc[j]}/anywhere/${dates[0]}/${dates[1]}`, {
       "method": "GET",
       "headers": {
-        "x-rapidapi-key": key,
+        "x-rapidapi-key": process.env.API_KEY,
         "x-rapidapi-host": "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com"
       }
     });
